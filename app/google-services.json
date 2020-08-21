@@ -1,0 +1,107 @@
+{
+  "project_info": {
+    "project_number": "1039806155244",
+    "firebase_url": "https://imhere-dd22a.firebaseio.com",
+    "project_id": "imhere-dd22a",
+    "storage_bucket": "imhere-dd22a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039806155244:android:e618fd3d8093a7c1a398c9",
+        "android_client_info": {
+          "package_name": "moe.misakachan.imhere"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1039806155244-fvh4fj19u78jg00e4ce2bc0mnnef4qso.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5iWpdyqwojny1wkB1u0HfVbD_LKEy4DM"
+        },
+        {
+          "current_key": "AIzaSyCQVLx-56ABv6-yxHpmNed8tJY44TXRfAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1039806155244-fvh4fj19u78jg00e4ce2bc0mnnef4qso.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039806155244:android:dea4169046bf54aaa398c9",
+        "android_client_info": {
+          "package_name": "moe.misakachan.imhere_driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1039806155244-fvh4fj19u78jg00e4ce2bc0mnnef4qso.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5iWpdyqwojny1wkB1u0HfVbD_LKEy4DM"
+        },
+        {
+          "current_key": "AIzaSyCQVLx-56ABv6-yxHpmNed8tJY44TXRfAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1039806155244-fvh4fj19u78jg00e4ce2bc0mnnef4qso.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039806155244:android:0a220825854f8709a398c9",
+        "android_client_info": {
+          "package_name": "moe.misakachan.imheredriver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1039806155244-fvh4fj19u78jg00e4ce2bc0mnnef4qso.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5iWpdyqwojny1wkB1u0HfVbD_LKEy4DM"
+        },
+        {
+          "current_key": "AIzaSyCQVLx-56ABv6-yxHpmNed8tJY44TXRfAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1039806155244-fvh4fj19u78jg00e4ce2bc0mnnef4qso.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

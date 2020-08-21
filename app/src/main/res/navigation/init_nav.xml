@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/init_nav"
+    app:startDestination="@id/permissionFramgnet">
+
+    <fragment
+        android:id="@+id/permissionFramgnet"
+        android:name="moe.misakachan.imhere_driver.PermissionFramgnet"
+        android:label="fragment_permission_framgnet"
+        tools:layout="@layout/fragment_permission_framgnet" >
+        <action
+            android:id="@+id/action_permissionFramgnet_to_loginFragment"
+            app:destination="@id/loginFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="moe.misakachan.imhere_driver.LoginFragment"
+        android:label="fragment_login"
+        tools:layout="@layout/fragment_login" >
+        <action
+            android:id="@+id/action_loginFragment_to_listCarFragment"
+            app:destination="@id/listCarFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/listCarFragment"
+        android:name="moe.misakachan.imhere_driver.ListCarFragment"
+        android:label="fragment_list_car"
+        tools:layout="@layout/fragment_list_car" >
+        <action
+            android:id="@+id/action_listCarFragment_to_connectCarFragment"
+            app:destination="@id/connectCarFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/connectCarFragment"
+        android:name="moe.misakachan.imhere_driver.ConnectCarFragment"
+        android:label="fragment_connect_car"
+        tools:layout="@layout/fragment_connect_car" >
+        <argument
+            android:name="DeviceName"
+            app:argType="string" />
+        <argument
+            android:name="DeviceAddress"
+            app:argType="string" />
+    </fragment>
+</navigation>
