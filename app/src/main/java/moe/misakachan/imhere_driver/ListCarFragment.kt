@@ -41,7 +41,7 @@ class ListCarFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
     override fun onPause() {
         super.onPause()
-        requireActivity().unregisterReceiver(bluetoothStateReceiver)
+        //requireActivity().unregisterReceiver(bluetoothStateReceiver)
     }
 
     override fun onStart() {
@@ -87,6 +87,12 @@ class ListCarFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             if(!mPairedDevice.contains(device))
                 device.createBond()
             val action = ListCarFragmentDirections.actionListCarFragmentToConnectCarFragment(device.name, device.address)
+            findNavController().navigate(action)
+            requireActivity().unregisterReceiver(bluetoothStateReceiver)
+        }
+
+        extendedFloatingActionButton.setOnClickListener {
+            val action = ListCarFragmentDirections.actionListCarFragmentToConnectCarFragment("스탠드얼론", "SELF")
             findNavController().navigate(action)
         }
     }

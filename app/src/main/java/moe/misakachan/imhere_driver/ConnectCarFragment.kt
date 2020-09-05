@@ -28,11 +28,11 @@ class ConnectCarFragment : Fragment() {
         btnContinue.setOnClickListener {
            val intent = Intent(context, ImhereService::class.java)
             intent.putExtra("MAC", args.deviceAddress)
-            //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            //activity?.startForegroundService(intent)
-            // else
-            requireActivity().startService(intent)
-
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                requireActivity().startForegroundService(intent)
+            } else {
+                requireActivity().startService(intent)
+            }
             startActivity(Intent(context, MainActivity::class.java))
             requireActivity().finish()
         }

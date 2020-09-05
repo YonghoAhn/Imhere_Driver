@@ -25,15 +25,20 @@ class LoginFragment : Fragment() {
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        buttonLogin.setOnClickListener {
-            mAuth.signInAnonymously().addOnCompleteListener {
-                if(it.isSuccessful)
-                {
-                    findNavController().navigate(LoginFragmentDirections.actionLoginFragmentToListCarFragment())
-                }
-                else
-                {
-                    Toast.makeText(requireContext(), "일시적인 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+        if(mAuth.currentUser != null)
+        {
+            findNavController().navigate(LoginFragmentDirections.actionLoginFragmentToListCarFragment())
+        }
+        else
+        {
+            buttonLogin.setOnClickListener {
+                mAuth.signInAnonymously().addOnCompleteListener {
+                    if (it.isSuccessful) {
+                        findNavController().navigate(LoginFragmentDirections.actionLoginFragmentToListCarFragment())
+                    } else {
+                        Toast.makeText(requireContext(), "일시적인 오류가 발생했습니다: ${it.exception}", Toast.LENGTH_SHORT)
+                            .show()
+                    }
                 }
             }
         }

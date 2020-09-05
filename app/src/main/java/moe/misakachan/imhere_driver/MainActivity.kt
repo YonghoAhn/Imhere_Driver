@@ -1,162 +1,226 @@
 package moe.misakachan.imhere_driver
 
-import android.Manifest
-import android.content.pm.PackageManager
+import android.content.*
+import android.graphics.Camera
 import android.location.Location
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.RemoteException
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import android.util.Log
-import androidx.core.content.ContextCompat
-import com.google.android.gms.location.*
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import org.altbeacon.beacon.*
+import com.google.android.gms.maps.model.*
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback, BeaconConsumer {
-    private val firestore = FirebaseFirestore.getInstance()
-    private lateinit var mMap : GoogleMap
+class MainActivity : AppCompatActivity(), OnMapReadyCallback {
+    private lateinit var mMap: GoogleMap
+    private val markerList = HashMap<String, Marker>()
+    private var currentLocationMarker : Marker? = null
 
-    private val beaconManager by lazy { BeaconManager.getInstanceForApplication(this) }
+    private val localBroadcastManager by lazy {LocalBroadcastManager.getInstance(this)}
+    private lateinit var textToSpeech: TextToSpeech
+    private val ttsList = ArrayList<String>()
 
-    private lateinit var client: FusedLocationProviderClient
+    private val soundPlayer by lazy {ImhereSoundPlayer(context = applicationContext)}
 
-    private val highAccuracyLocationCallback: LocationCallback = object : LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            val location: Location = locationResult.lastLocation
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(LatLng(location.latitude,location.longitude)))
+    private val locationUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            val location: Location? = p1?.getParcelableExtra("location")
+            val bearing = p1?.getFloatExtra("bearing",0.0f)
+            if (location != null) {
+                Log.d("MisakaMOE", "location: ${location.latitude}, ${location.longitude}")
+                mMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition(LatLng(location.latitude, location.longitude),18.0f,0.0f, bearing!!)))
+                val marker = MarkerOptions().position(
+                    LatLng(location.latitude, location.longitude))
+                    .icon((BitmapDescriptorFactory.fromResource(R.drawable.round_navigation_black_24dp)))
+                    .title("현위치")
+                currentLocationMarker?.remove()
+                currentLocationMarker = mMap.addMarker(marker)
+            }
         }
     }
 
-    companion object {
-        val ALTBEACON = "m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"
-        val ALTBEACON2 = "m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"
-        val EDDYSTONE_TLM = "x,s:0-1=feaa,m:2-2=20,d:3-3,d:4-5,d:6-7,d:8-11,d:12-15"
-        val EDDYSTONE_UID = "s:0-1=feaa,m:2-2=00,p:3-3:-41,i:4-13,i:14-19"
-        val EDDYSTONE_URL = "s:0-1=feaa,m:2-2=10,p:3-3:-41,i:4-20v"
-        val IBEACON = "m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"
+    private val pedestrianEventReceiver = object : BroadcastReceiver() {
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            val location = p1?.getParcelableExtra<Location>("pos")
+            val key = p1?.getStringExtra("key")
+            if(markerList.containsKey(key))
+            {
+                markerList[key]?.remove()
+            }
+            if(location != null)
+            {
+                val marker = MarkerOptions()
+                    .position(LatLng(location.latitude, location.longitude))
+                    .title("보행자")
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.round_directions_walk_black_24dp))
+                val m = mMap.addMarker(marker)
+                if(key != null)
+                    markerList[key] = m
+            }
+        }
+    }
+
+    private val pedestrianRemoveEventListener = object : BroadcastReceiver() {
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            val id = p1?.getStringExtra("key")
+            if(id!=null)
+            {
+                ttsList.remove(id)
+                markerList[id]?.remove()
+                markerList.remove(id)
+            }
+        }
+    }
+
+    private val bearingListener = object : BroadcastReceiver() {
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            val bearing = p1?.getFloatExtra("bearing",0.0f)
+            if(bearing != null)
+                mMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition(mMap.cameraPosition.target, 18.0f, 0.0f, bearing)))
+        }
+    }
+
+    private val collisionEventReceiver = object : BroadcastReceiver() {
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            val time = p1?.getIntExtra("time", -1)
+            val bearing: Float? = p1?.getFloatExtra("bearing", 0.0f)
+            val key = p1?.getStringExtra("key")
+            if(!ttsList.contains(key)) {
+                if (key != null) {
+                    ttsList.add(key)
+                }
+                if (bearing != null) {
+                    if (time == 0) {
+                        val str = "${stringfyDegree(normalizeDegree(bearing))} 방향에 보행자가 있습니다."
+                        textToSpeech.speak(
+                            str,
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            null
+                        )
+                    } else if (time != -1) {
+                        val str = "${stringfyDegree(normalizeDegree(bearing))}에 $time 초 뒤 사고 위험이 있습니다."
+                        textToSpeech.speak(
+                            str,
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            null
+                        )
+                    }
+                } else {
+                    textToSpeech.speak(
+                        "근접한 보행자가 있습니다.",
+                        TextToSpeech.QUEUE_ADD,
+                        null,
+                        null
+                    )
+                }
+            } else {
+                //play alert sound
+                soundPlayer.play()
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(VibrationEffect.createOneShot(300,100))
+                } else {
+                    (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(500)
+                }
+            }
+        }
+    }
+
+    private fun normalizeDegree(value : Float): Float {
+        return if (value in 0.0f..180.0f) {
+            value
+        } else {
+            180 + (180 + value)
+        }
+    }
+
+    private fun stringfyDegree(value: Float) : String {
+        return if((value in 0.0f..45.0f) || (value in 315.0f..366.0f)) "앞쪽"
+        else if( value in 45.0f..135.0f) "우측"
+        else if(value in 135.0f..225.0f) "뒷쪽"
+        else if(value in 225.0f..315.0f) "왼쪽"
+        else ""
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout(ALTBEACON))
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout(ALTBEACON2))
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout(EDDYSTONE_TLM))
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout(EDDYSTONE_UID))
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout(EDDYSTONE_URL))
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout(IBEACON))
-        beaconManager.beaconParsers.add(BeaconParser().setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24"))
-
+        textToSpeech = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = textToSpeech.setLanguage(Locale.KOREA)
+                if (result == TextToSpeech.LANG_MISSING_DATA ||
+                    result == TextToSpeech.LANG_NOT_SUPPORTED
+                )
+                    Toast.makeText(
+                        applicationContext,
+                        "Korean TTS not supproted. tts disabled",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                else {
+                    textToSpeech.setPitch(0.8f)
+                    textToSpeech.setSpeechRate(1.2f)
+                }
+            }
+        }
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
     }
 
     override fun onResume() {
         super.onResume()
-        val request = LocationRequest()
-        request.interval = 3000
-        request.fastestInterval = 1000
-        request.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        client = LocationServices.getFusedLocationProviderClient(this)
+        localBroadcastManager.registerReceiver(locationUpdateReceiver, IntentFilter("moe.misakachan.imhere.location"))
+        localBroadcastManager.registerReceiver(pedestrianEventReceiver, IntentFilter("moe.misakachan.imhere.pedestrian"))
+        localBroadcastManager.registerReceiver(pedestrianRemoveEventListener, IntentFilter("moe.misakachan.imhere.remove"))
+        localBroadcastManager.registerReceiver(collisionEventReceiver, IntentFilter("moe.misakachan.imhere.collision"))
+        //localBroadcastManager.registerReceiver(bearingListener, IntentFilter("moe.misakachan.imhere.bearing"))
+    }
 
-        val permission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
-        if (permission == PackageManager.PERMISSION_GRANTED) {
-            client.requestLocationUpdates(request, highAccuracyLocationCallback, null)
+    override fun onPause() {
+        super.onPause()
+        localBroadcastManager.unregisterReceiver(collisionEventReceiver)
+    }
+
+    override fun onBackPressed() {
+        val alBuilder = AlertDialog.Builder(this);
+        alBuilder.setMessage("종료하시겠습니까?");
+        // "예" 버튼을 누르면 실행되는 리스너
+        alBuilder.setPositiveButton("예") { _, _ ->
+            finish()
         }
+        // "아니오" 버튼을 누르면 실행되는 리스너
+        alBuilder.setNegativeButton("아니오") { _, _ -> null }
+        alBuilder.setTitle("프로그램 종료")
+        alBuilder.show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        beaconManager.unbind(this)
-        client.removeLocationUpdates(highAccuracyLocationCallback)
+        localBroadcastManager.unregisterReceiver(locationUpdateReceiver)
+        localBroadcastManager.unregisterReceiver(pedestrianEventReceiver)
+        localBroadcastManager.unregisterReceiver(pedestrianRemoveEventListener)
+        //localBroadcastManager.unregisterReceiver(bearingListener)
+        stopService(Intent(this, ImhereService::class.java))
     }
-
-    override fun onBeaconServiceConnect() {
-        beaconManager.addRangeNotifier { beacons, region ->
-            if(beacons.isNotEmpty())
-            {
-                //beaconList.clear()
-                mMap.clear()
-                for(beacon in beacons){
-                    Log.d("MisakaMOE", "Beacon: ${beacon.bluetoothName}, distance: ${beacon.distance}, uuid1: ${beacon.id1}, id2:${beacon.id2}, id3:${beacon.id3}")
-                    //beaconList.add("${beacon.bluetoothName}, distance: ${beacon.distance}, id2:${beacon.id2}, id3:${beacon.id3}")
-                    firestore.collection("ids").document("users").collection("user")
-                        .whereEqualTo("major",beacon.id2.toInt())
-                        .whereEqualTo("minor",beacon.id3.toInt())
-                        .get()
-                        .addOnSuccessListener {
-                            if(it.documents.size > 0) {
-                                Log.d("MisakaMOE","Add Marker")
-                                val pos = it.documents[0].getGeoPoint("currentPosition")
-                                if (pos != null) {
-                                    val marker = MarkerOptions().position(
-                                        LatLng(
-                                            pos.latitude,
-                                            pos.longitude
-                                        )
-                                    ).title("보행자").snippet("대충 거리표시")
-                                    mMap.addMarker(marker)
-
-                                }
-                            } else
-                            {
-                                Log.d("MisakaMOE","No documents")
-                            }
-                        }
-                }
-            }
-        }
-        beaconManager.addMonitorNotifier(object : MonitorNotifier {
-            override fun didDetermineStateForRegion(state: Int, p1: Region?) {
-                Log.i("MisakaMOE", "I have just switched from seeing/not seeing beacons: $state")
-            }
-
-            override fun didEnterRegion(p0: Region?) {
-                Log.d("MisakaMOE", "I just saw this beacon first time")
-            }
-
-            override fun didExitRegion(p0: Region?) {
-                Log.i("MisakaMOE", "I no longer see an beacon");
-            }
-
-        })
-        try {
-            beaconManager.startMonitoringBeaconsInRegion(
-                Region("beacon",
-                    Identifier.parse("2f234454-cf6d-4a0f-adf2-f4911ba9ffa6"),null,null)
-            )
-        } catch (e : RemoteException) {
-            Log.e("MisakaMOE", "Error while start monitor")
-        }
-        try {
-            beaconManager.startRangingBeaconsInRegion(
-                Region("beacon",
-                    Identifier.parse("2f234454-cf6d-4a0f-adf2-f4911ba9ffa6"),null,null)
-            )
-        } catch (e : RemoteException) {
-            Log.e("MisakaMOE", "Error while start ranging")
-        }
-    }
-
 
     override fun onMapReady(p0: GoogleMap?) {
         if (p0 != null) {
             mMap = p0
-            beaconManager.bind(this)
             mMap.uiSettings.isMyLocationButtonEnabled = true
             mMap.uiSettings.isZoomControlsEnabled = true
-            mMap.animateCamera(CameraUpdateFactory.zoomTo(21.0F), 5000, null)
+            //mMap.animateCamera(CameraUpdateFactory.zoomTo(21.0F), 5000, null)
         }
     }
 }
